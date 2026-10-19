@@ -1,0 +1,804 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>몬스터 마블</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Noto+Sans+KR:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#1b120c; --panel:#2a1c12; --ink:#f6ead8; --muted:#c9b59a; --gold:#f2b632; --line:#5a3f28;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family:'Noto Sans KR',system-ui,sans-serif;overflow:hidden}
+button{font-family:inherit;cursor:pointer}
+
+/* ---------- loading ---------- */
+#loading{position:fixed;inset:0;z-index:100;background:#000 center/contain no-repeat;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;padding-bottom:16vh}
+#loadbar{width:min(520px,70vw);height:16px;border:2px solid var(--gold);border-radius:10px;background:rgba(0,0,0,.6);overflow:hidden}
+#loadfill{height:100%;width:0;background:linear-gradient(90deg,#7ad62a,#f2b632);transition:width .2s}
+#loadtxt{margin-top:10px;font-weight:700;text-shadow:0 2px 4px #000}
+#startBtn{display:none;margin-top:14px}
+.big-btn{font-family:'Black Han Sans','Noto Sans KR',sans-serif;font-size:26px;padding:12px 40px;border-radius:14px;border:3px solid #3b2410;color:#2b1606;background:linear-gradient(#ffd45a,#e79a1b);box-shadow:0 5px 0 #7a4a0e,0 8px 20px rgba(0,0,0,.6)}
+.big-btn:hover{filter:brightness(1.1)}
+.big-btn:active{transform:translateY(3px);box-shadow:0 2px 0 #7a4a0e}
+
+/* ---------- layout ---------- */
+#game{position:fixed;inset:0;display:grid;grid-template-columns:1fr auto 1fr;grid-template-rows:1fr 1fr;gap:8px;padding:8px}
+#p-red{grid-column:1;grid-row:1}
+#p-blue{grid-column:1;grid-row:2}
+#p-yellow{grid-column:3;grid-row:1}
+#p-green{grid-column:3;grid-row:2}
+#boardWrap{grid-column:2;grid-row:1/span 2;display:flex;align-items:center;justify-content:center}
+@media (max-aspect-ratio:5/4){
+  html,body{overflow:auto}
+  #game{position:static;grid-template-columns:1fr 1fr;grid-template-rows:auto auto auto}
+  #p-red{grid-column:1;grid-row:1} #p-yellow{grid-column:2;grid-row:1}
+  #boardWrap{grid-column:1/span 2;grid-row:2}
+  #p-blue{grid-column:1;grid-row:3} #p-green{grid-column:2;grid-row:3}
+}
+
+/* ---------- panels ---------- */
+.panel{position:relative;border-radius:16px;padding:14px;background:linear-gradient(160deg,var(--tc-soft),var(--panel) 55%);border:3px solid var(--tc);display:flex;flex-direction:column;gap:10px;min-width:0;overflow:auto;transition:box-shadow .3s}
+.panel.turn{box-shadow:0 0 0 3px #fff,0 0 30px 6px var(--tc)}
+.panel.out{filter:grayscale(1) brightness(.6)}
+.ph{display:flex;align-items:center;gap:12px}
+.avatar{width:64px;height:64px;flex:none;border-radius:50%;border:3px solid var(--tc);background-color:#fff;background-size:303.9% auto;background-position:14.86% 37.9%;background-repeat:no-repeat}
+.pname{font-family:'Black Han Sans','Noto Sans KR',sans-serif;font-size:26px;line-height:1;color:var(--tc-text)}
+.tag{display:inline-block;margin-top:4px;font-size:12px;font-weight:700;padding:2px 8px;border-radius:99px;background:rgba(255,255,255,.12);color:var(--ink)}
+.turn-badge{margin-left:auto;font-size:12px;font-weight:900;background:#fff;color:#000;padding:3px 8px;border-radius:99px;display:none}
+.panel.turn .turn-badge{display:block}
+.coins{display:flex;align-items:center;gap:10px;background:rgba(0,0,0,.35);border-radius:12px;padding:8px 12px}
+.coin-ico{width:34px;height:34px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff3a8,#f2b632 45%,#b8740b);border:2px solid #7a4a0e;display:grid;place-items:center;font-weight:900;color:#6b3d00;font-size:16px;flex:none}
+.coins b{font-size:30px;font-variant-numeric:tabular-nums;color:var(--gold)}
+.coins small{color:var(--muted);margin-left:2px}
+.coin-delta{font-weight:900;font-size:16px;margin-left:auto;opacity:0;transition:opacity .3s}
+.coin-delta.show{opacity:1}
+.stats{font-size:13px;color:var(--muted);display:grid;grid-template-columns:1fr 1fr;gap:4px 10px}
+.stats span b{color:var(--ink)}
+.status{font-size:13px;font-weight:700;color:#ffcf7a;min-height:18px}
+.btns{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:auto}
+.btns button{padding:10px 6px;border-radius:10px;border:2px solid var(--tc);background:rgba(0,0,0,.35);color:var(--ink);font-weight:700;font-size:14px}
+.btns button:hover{background:var(--tc);color:#fff}
+
+/* ---------- board ---------- */
+#board{position:relative;background:url("몬스터 보드게임 판.png") center/100% 100% no-repeat;box-shadow:0 10px 40px rgba(0,0,0,.8);border-radius:6px}
+.cell{position:absolute;cursor:pointer}
+.cell .own{position:absolute;inset:3%;border-radius:4px;opacity:.55;mix-blend-mode:multiply;pointer-events:none}
+.cell .frame{position:absolute;inset:0;border:4px solid transparent;border-radius:4px;pointer-events:none}
+.cell:hover .frame{border-color:rgba(255,255,255,.6)}
+.cell.selectable .frame{border-color:#fff;animation:pulse 1s infinite}
+.cell.selectable{z-index:3}
+@keyframes pulse{50%{border-color:#f2b632;box-shadow:0 0 14px #f2b632}}
+.cell .pot{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);background:rgba(0,0,0,.8);color:var(--gold);font-weight:900;border:2px solid var(--gold);border-radius:99px;padding:1px 7px;font-size:clamp(9px,1.1vmin,14px);white-space:nowrap;pointer-events:none}
+.cell .star{position:absolute;right:4%;top:3%;font-size:clamp(10px,1.6vmin,20px);color:#fff;text-shadow:0 0 4px #000,0 0 2px #000;pointer-events:none}
+.cell .awk{position:absolute;left:4%;top:3%;font-size:clamp(9px,1.1vmin,13px);font-weight:900;background:#7b1fa2;color:#fff;border-radius:6px;padding:0 4px;pointer-events:none;animation:glow 1.2s infinite}
+@keyframes glow{50%{box-shadow:0 0 10px #e040fb}}
+.pawn{position:absolute;transition:left .14s,top .14s;z-index:5;pointer-events:none}
+.pawn svg{width:100%;height:100%;display:block;overflow:visible;filter:drop-shadow(0 3px 3px rgba(0,0,0,.6))}
+.pawn.active{z-index:6}
+.pawn.active svg{animation:bob .9s ease-in-out infinite;filter:drop-shadow(0 0 6px var(--tc)) drop-shadow(0 3px 3px rgba(0,0,0,.6))}
+.pawn .aura{transform-origin:60px 64px;animation:auraPulse 1.8s ease-in-out infinite}
+.pawn .spin{transform-origin:60px 64px;animation:spin 5s linear infinite}
+.pawn .spin2{transform-origin:60px 64px;animation:spin 7s linear infinite reverse}
+.pawn .spark{animation:twinkle 1.5s ease-in-out infinite}
+@keyframes bob{50%{transform:translateY(-8%)}}
+@keyframes auraPulse{50%{transform:scale(1.06);opacity:.75}}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes twinkle{0%,100%{opacity:.15}50%{opacity:1}}
+
+/* center */
+#topBox{position:absolute;left:13%;right:13%;top:12%;height:12%;background:rgba(30,18,8,.82);border:2px solid var(--line);border-radius:12px;padding:6px 10px;overflow:auto;font-size:clamp(10px,1.35vmin,14px);line-height:1.45}
+#topBox .ln{border-left:4px solid var(--c,#888);padding-left:6px;margin-bottom:2px}
+#ctrl{position:absolute;left:13%;right:13%;bottom:12%;height:13%;background:rgba(30,18,8,.88);border:2px solid var(--gold);border-radius:12px;display:flex;align-items:center;gap:2%;padding:0 2%}
+#turnLbl{font-family:'Black Han Sans','Noto Sans KR',sans-serif;font-size:clamp(14px,2.4vmin,28px);white-space:nowrap}
+#msg{flex:1;font-size:clamp(11px,1.6vmin,17px);font-weight:700;min-width:0}
+.dice{display:flex;gap:8px}
+.die{width:clamp(28px,5.2vmin,60px);aspect-ratio:1;background:#fffdf5;border-radius:18%;border:2px solid #3b2410;box-shadow:inset 0 -4px 0 #d9cbb0,0 3px 6px rgba(0,0,0,.6);display:grid;grid-template:repeat(3,1fr)/repeat(3,1fr);padding:12%}
+.die i{width:70%;aspect-ratio:1;border-radius:50%;background:#222;place-self:center;visibility:hidden}
+.die i.on{visibility:visible}
+.die.dbl{border-color:#e040fb}
+#rollBtn{font-size:clamp(13px,2vmin,22px);padding:.5em 1em}
+#rollBtn:disabled{filter:grayscale(1) brightness(.6);cursor:not-allowed}
+#cancelSel{display:none}
+
+/* ---------- modal ---------- */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.72);display:none;align-items:center;justify-content:center;z-index:50;padding:16px}
+.overlay.show{display:flex}
+#viewer{z-index:60}
+.mbox{background:linear-gradient(#3a2716,#22160c);border:3px solid var(--gold);border-radius:18px;padding:20px 22px;max-width:min(920px,96vw);max-height:92vh;overflow:auto;box-shadow:0 20px 60px #000}
+.mbox h2{margin:0 0 12px;font-family:'Black Han Sans','Noto Sans KR',sans-serif;font-weight:400;font-size:28px;color:var(--gold)}
+.mbox p{margin:6px 0;line-height:1.55}
+.mbtns{display:flex;flex-wrap:wrap;gap:10px;margin-top:16px;justify-content:center}
+.btn{padding:10px 18px;border-radius:10px;border:2px solid #7a4a0e;background:linear-gradient(#ffd45a,#e79a1b);color:#2b1606;font-weight:900;font-size:15px}
+.btn.sec{background:#4a3523;color:var(--ink);border-color:#7a5a3a}
+.btn.danger{background:linear-gradient(#ff7a7a,#c62828);color:#fff;border-color:#7a0e0e}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.cardimg{width:100%;border-radius:10px;display:block}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:14px}
+.card{background:rgba(0,0,0,.3);border-radius:12px;padding:8px;border:2px solid transparent}
+.card .meta{font-size:13px;color:var(--muted);margin-top:6px;line-height:1.5}
+.card .meta b{color:var(--ink)}
+.card.up{border-color:var(--gold)}
+.pill{display:inline-block;padding:1px 8px;border-radius:99px;font-size:12px;font-weight:900;margin-right:4px}
+.pill.c{background:#cfd4dc;color:#222}
+.pill.e{background:#f2b632;color:#3b2410}
+.pill.a{background:#7b1fa2;color:#fff}
+.deal{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.deal .card{text-align:center}
+.rank{width:100%;border-collapse:collapse;margin-top:8px}
+.rank td,.rank th{border-bottom:1px solid var(--line);padding:8px;text-align:left;vertical-align:top;font-size:14px}
+.rank th{color:var(--gold)}
+.rank .no{font-family:'Black Han Sans',sans-serif;font-size:26px}
+.count-btns{display:flex;gap:14px;justify-content:center;margin-top:12px}
+.count-btns .btn{font-size:24px;width:80px;height:70px}
+.sellrow{display:flex;align-items:center;gap:10px}
+</style>
+</head>
+<body>
+
+<div id="loading">
+  <div id="loadbar"><div id="loadfill"></div></div>
+  <div id="loadtxt">불러오는 중...</div>
+  <button id="startBtn" class="big-btn">게임 시작</button>
+</div>
+
+<div id="game">
+  <div class="panel" id="p-red"></div>
+  <div class="panel" id="p-blue"></div>
+  <div id="boardWrap">
+    <div id="board">
+      <div id="topBox"></div>
+      <div id="ctrl">
+        <div id="turnLbl">-</div>
+        <div class="dice"><div class="die" id="d1"></div><div class="die" id="d2"></div></div>
+        <div id="msg"></div>
+        <button id="rollBtn" class="big-btn" disabled>🎲 굴리기</button>
+        <button id="cancelSel" class="btn sec">취소</button>
+      </div>
+    </div>
+  </div>
+  <div class="panel" id="p-yellow"></div>
+  <div class="panel" id="p-green"></div>
+</div>
+
+<div class="overlay" id="modal"><div class="mbox" id="mbox"></div></div>
+<div class="overlay" id="viewer"><div class="mbox" id="vbox"></div></div>
+
+<script>
+// ============================ DATA ============================
+const WEAPONS = {
+  '폭탄':'c','산성병':'c','전격탄':'c','해독제':'c','화염병':'c',   // 은색 = 소모형
+  '거울':'e','덫':'e','마법서':'e','성물':'e','은 무기':'e'         // 금색 = 장비형 (5회)
+};
+const CONSUMABLES = Object.keys(WEAPONS).filter(k=>WEAPONS[k]==='c');
+const EQUIPMENTS  = Object.keys(WEAPONS).filter(k=>WEAPONS[k]==='e');
+const EQUIP_USES = 5;
+
+// 이름: [필요무기, 강화비용, 통행료, 강화 통행료, 매각, 강화 매각]
+const MONSTERS = {
+  '고블린':['덫,폭탄',10,50,80,30,40],
+  '스켈레톤':['성물,폭탄',10,50,80,30,40],
+  '슬라임':['산성병,화염병',10,50,80,30,40],
+  '거대 쥐떼':['덫,화염병',10,50,80,30,40],
+  '박쥐 떼':['거울,화염병',10,50,80,30,40],
+  '그렘린':['덫,전격탄',10,50,80,30,40],
+  '좀비':['성물,화염병',30,100,150,50,70],
+  '미라':['성물,화염병',30,100,150,50,70],
+  '유령':['성물,마법서',30,100,150,50,70],
+  '듀라한':['성물,거울',30,110,150,50,80],
+  '마녀':['성물,마법서',30,110,150,50,80],
+  '켈피':['성물,거울',30,100,150,50,70],
+  '거대 거미':['화염병,해독제',30,100,150,50,70],
+  '그리핀':['덫,전격탄',30,100,150,50,70],
+  '식인 버섯':['산성병,화염병',30,100,150,50,70],
+  '골렘':['산성병,전격탄',30,110,150,50,70],
+  '늑대인간':['은 무기,전격탄',40,200,270,80,110],
+  '뱀파이어':['성물,거울',40,200,270,80,110],
+  '도플갱어':['마법서,거울',40,200,270,80,110],
+  '네시':['은 무기,전격탄',40,200,270,80,110],
+  '프랑켄슈타인':['폭탄,전격탄',40,200,270,80,110],
+  '드라운':['거울,성물',40,210,280,80,110],
+  '바실리스크':['거울,해독제',40,200,270,80,110],
+  '미노타우로스':['덫,폭탄',40,210,270,80,120],
+  '키메라':['산성병,폭탄',40,210,270,80,120],
+  '멘티코어':['은 무기,폭탄',40,210,270,80,120],
+  '드래곤':['은 무기+폭탄',70,350,430,170,200],
+  '악마':['성물+마법서',70,350,430,170,200],
+  '히드라':['해독제+화염병',70,350,430,170,200],
+  '데몬 로드':['성물+마법서',70,370,470,170,220],
+  '크라켄':['폭탄+전격탄',70,370,470,170,220],
+  '케르베로스':['성물+화염병',70,370,470,170,220],
+  '스킬라':['폭탄+화염병',70,370,470,170,220],
+  '싸이클론':['은 무기+화염병',70,370,470,170,220],
+  '메두사':['해독제+거울',70,370,470,170,220],
+  '카리브디스':['폭탄+전격탄',70,370,470,170,220],
+};
+const BASIC = ['*',10,40,60,20,30]; // 기본몬스터: 모든 무기
+
+const TEAMS = [
+  {key:'red',   name:'레드 팀', main:'#e0202a', text:'#ff6b6b', light:'#ff9ec0', dark:'#b0001c', basic:'기본몬스터_빨간색.png', ball:['#ffa3a3','#e8202c','#6e000c']},
+  {key:'blue',  name:'블루 팀', main:'#1f6fe0', text:'#6fb2ff', light:'#8fd8ff', dark:'#0a3a9c', basic:'기본몬스터_파란색.png', ball:['#a6e4ff','#1f78e8','#08286e']},
+  {key:'yellow',name:'옐로 팀', main:'#f2c200', text:'#ffd84a', light:'#fff38a', dark:'#d49a00', basic:'기본몬스터_노란색.png', ball:['#fff7b8','#f5c800','#9a6a00']},
+  {key:'green', name:'그린 팀', main:'#2e9e3a', text:'#6fe07a', light:'#b4f58f', dark:'#13701c', basic:'기본몬스터_초록색.png', ball:['#dcff86','#5ec41c','#1d5f08']},
+];
+
+// 시작(0)부터 시계방향 44칸
+const LAYOUT = [
+  'S','#0','#1','#2','#3','고블린','스켈레톤','슬라임','거대 쥐떼','박쥐 떼','그렘린',
+  'J','좀비','미라','유령','듀라한','마녀','켈피','거대 거미','그리핀','식인 버섯','골렘',
+  'A','늑대인간','뱀파이어','도플갱어','네시','프랑켄슈타인','드라운','바실리스크','미노타우로스','키메라','멘티코어',
+  'W','드래곤','악마','히드라','데몬 로드','크라켄','케르베로스','스킬라','싸이클론','메두사','카리브디스'
+];
+const N = LAYOUT.length;
+const START=0, JAIL=11, AWAKEN=22, WARP=33;
+
+function parseReq(s){
+  if(s==='*') return '*';
+  if(s.includes('+')) return [s.split('+').map(x=>x.trim())];
+  return s.split(',').map(x=>[x.trim()]);
+}
+const cells = LAYOUT.map((code,i)=>{
+  if(code==='S') return {i,type:'start',name:'시작'};
+  if(code==='J') return {i,type:'jail',name:'지하감옥'};
+  if(code==='A') return {i,type:'awaken',name:'몬스터 각성'};
+  if(code==='W') return {i,type:'warp',name:'워프'};
+  let d, name, img;
+  if(code[0]==='#'){ const t=TEAMS[+code[1]]; d=BASIC; name='기본몬스터 ('+t.name.replace(' 팀','')+')'; img='기본몬스터카드/'+t.basic; }
+  else { d=MONSTERS[code]; name=code; img='몬스터카드/'+code+'.png'; }
+  return {i,type:'monster',name,img,basic:code[0]==='#',req:parseReq(d[0]),reqText:d[0]==='*'?'모든 무기':d[0],
+          up:d[1],toll:[d[2],d[3]],sell:[d[4],d[5]],owner:null,upgraded:false,pot:0,awakened:false};
+});
+
+function cellRect(i){ // % 단위 (2000px 판 기준: 모서리 220, 칸 156)
+  const C=11, W=7.8;
+  if(i===0) return [0,0,C,C];
+  if(i<11)  return [C+(i-1)*W,0,W,C];
+  if(i===11)return [100-C,0,C,C];
+  if(i<22)  return [100-C,C+(i-12)*W,C,W];
+  if(i===22)return [100-C,100-C,C,C];
+  if(i<33)  return [100-C-(i-22)*W,100-C,W,C];
+  if(i===33)return [0,100-C,C,C];
+  return [0,100-C-(i-33)*W,C,W];
+}
+const url = p => encodeURI(p);
+const wImg = n => url('무기/'+n+'.png');
+
+// ============================ STATE ============================
+let players=[], turn=0, over=false, uid=0;
+const sleep = ms => new Promise(r=>setTimeout(r,ms));
+const $ = s => document.querySelector(s);
+
+function newWeapon(p){
+  let name;
+  const ownedEq = new Set(p.weapons.filter(w=>w.type==='e').map(w=>w.name));
+  const freeEq = EQUIPMENTS.filter(n=>!ownedEq.has(n));
+  if(Math.random()<0.6 || freeEq.length===0) name = CONSUMABLES[Math.floor(Math.random()*CONSUMABLES.length)];
+  else name = freeEq[Math.floor(Math.random()*freeEq.length)];
+  const type = WEAPONS[name];
+  return {id:++uid,name,type,uses:type==='e'?EQUIP_USES:1};
+}
+function refill(p){ let n=0; while(p.weapons.length<10){ p.weapons.push(newWeapon(p)); n++; } return n; }
+function owned(p){ return cells.filter(c=>c.type==='monster'&&c.owner===p.idx); }
+function curToll(c){ return c.toll[c.upgraded?1:0]; }
+function curSell(c){ return c.sell[c.upgraded?1:0]; }
+function hasW(p,name){ return p.weapons.some(w=>w.name===name); }
+function claimOptions(p,c){
+  if(c.req==='*') return [...new Set(p.weapons.map(w=>w.name))].map(n=>[n]);
+  return c.req.filter(combo=>combo.every(n=>hasW(p,n)));
+}
+function useWeapon(p,name){
+  // 장비형은 남은 사용횟수가 적은 것부터, 소모형은 아무거나
+  const list = p.weapons.filter(w=>w.name===name);
+  const w = list.sort((a,b)=>a.uses-b.uses)[0];
+  w.uses--;
+  if(w.uses<=0) p.weapons.splice(p.weapons.indexOf(w),1);
+  return w;
+}
+
+// ============================ LOG / UI ============================
+function log(text, p){
+  const d=document.createElement('div'); d.className='ln';
+  if(p) d.style.setProperty('--c',p.team.main);
+  d.innerHTML=text;
+  const box=$('#topBox'); box.appendChild(d); box.scrollTop=box.scrollHeight;
+}
+function msg(t){ $('#msg').innerHTML=t; }
+function tname(p){ return `<b style="color:${p.team.text}">${p.team.name}</b>`; }
+
+function coinFx(p,delta){
+  const el=document.querySelector(`#p-${p.team.key} .coin-delta`); if(!el) return;
+  el.textContent=(delta>0?'+':'')+delta; el.style.color=delta>0?'#7ae07a':'#ff7a7a';
+  el.classList.add('show'); clearTimeout(el._t); el._t=setTimeout(()=>el.classList.remove('show'),1300);
+}
+function addCoins(p,n){ p.coins+=n; coinFx(p,n); }
+
+function renderPanels(){
+  players.forEach(p=>{
+    const el=$('#p-'+p.team.key);
+    el.style.setProperty('--tc',p.team.main);
+    el.style.setProperty('--tc-soft',p.team.main+'55');
+    el.style.setProperty('--tc-text',p.team.text);
+    el.classList.toggle('turn',players[turn]===p && !over);
+    el.classList.toggle('out',p.bankrupt);
+    const mons=owned(p), c=p.weapons.filter(w=>w.type==='c').length, e=p.weapons.length-c;
+    let status='';
+    if(p.bankrupt) status='💀 파산';
+    else if(p.jail>0) status=`⛓ 지하감옥 (남은 ${p.jail}번)`;
+    if(!el.dataset.built){
+      el.innerHTML=`
+        <div class="ph"><div class="avatar" style="background-image:url('${url('기본몬스터카드/'+p.team.basic)}')"></div>
+          <div><div class="pname">${p.team.name}</div><span class="tag">${p.human?'🙂 플레이어':'🤖 AI'}</span></div>
+          <div class="turn-badge">내 차례</div></div>
+        <div class="coins"><div class="coin-ico">C</div><b class="cv"></b><small>코인</small><span class="coin-delta"></span></div>
+        <div class="stats"></div>
+        <div class="status"></div>
+        <div class="btns"><button data-a="mon">내 몬스터 관리</button><button data-a="wep">내 무기 관리</button></div>`;
+      el.querySelector('[data-a=mon]').onclick=()=>showMonsters(p);
+      el.querySelector('[data-a=wep]').onclick=()=>showWeapons(p);
+      el.dataset.built=1;
+    }
+    el.querySelector('.cv').textContent=p.coins.toLocaleString();
+    el.querySelector('.stats').innerHTML=`
+      <span>몬스터 <b>${mons.length}</b>칸</span><span>강화 <b>${mons.filter(m=>m.upgraded).length}</b>칸</span>
+      <span>무기 <b>${p.weapons.length}</b>장</span><span>소모 <b>${c}</b> · 장비 <b>${e}</b></span>`;
+    el.querySelector('.status').textContent=status;
+  });
+}
+
+function buildBoard(){
+  const b=$('#board');
+  cells.forEach(c=>{
+    const [x,y,w,h]=cellRect(c.i);
+    const d=document.createElement('div'); d.className='cell'; d.id='cell'+c.i;
+    Object.assign(d.style,{left:x+'%',top:y+'%',width:w+'%',height:h+'%'});
+    d.innerHTML='<div class="own"></div><div class="frame"></div>';
+    d.title=c.name;
+    d.onclick=()=>onCellClick(c);
+    b.appendChild(d);
+  });
+  players.forEach(p=>{
+    const pw=document.createElement('div'); pw.className='pawn'; pw.id='pawn-'+p.team.key;
+    pw.style.setProperty('--tc',p.team.main);
+    pw.innerHTML=pawnSVG(p.team);
+    b.appendChild(pw);
+  });
+}
+
+// 게임 말: 팀 색 외눈 구슬 + 보라 뿔 + 빛나는 오라
+function pawnSVG(t){
+  const k=t.key, [hi,mid,lo]=t.ball;
+  const sparks=[[14,40,1.6,0],[104,34,1.3,.4],[20,92,1.2,.8],[100,90,1.7,.2],[30,18,1.1,1],[92,14,1.4,.6],[8,66,1,1.2],[112,62,1.2,.9]]
+    .map(([x,y,r,d])=>`<circle class="spark" cx="${x}" cy="${y}" r="${r}" fill="#e9f7ff" style="animation-delay:${d}s"/>`).join('');
+  return `<svg viewBox="0 0 120 120" aria-hidden="true">
+  <defs>
+    <radialGradient id="pb-${k}" cx="36%" cy="30%" r="75%"><stop offset="0" stop-color="${hi}"/><stop offset=".5" stop-color="${mid}"/><stop offset="1" stop-color="${lo}"/></radialGradient>
+    <radialGradient id="pi-${k}" cx="45%" cy="40%" r="60%"><stop offset="0" stop-color="#fff0a0"/><stop offset=".55" stop-color="#f7a10e"/><stop offset="1" stop-color="#b65400"/></radialGradient>
+    <radialGradient id="ps-${k}" cx="38%" cy="32%" r="72%"><stop offset="0" stop-color="#fff"/><stop offset=".75" stop-color="#ece7e2"/><stop offset="1" stop-color="#a9a19b"/></radialGradient>
+    <linearGradient id="ph-${k}" x1="0" y1="1" x2=".4" y2="0"><stop offset="0" stop-color="#4a1679"/><stop offset=".55" stop-color="#9a4ad8"/><stop offset="1" stop-color="#e2b8ff"/></linearGradient>
+    <filter id="pg-${k}" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="2.4"/></filter>
+  </defs>
+  <g class="aura">
+    <ellipse cx="60" cy="64" rx="52" ry="50" fill="none" stroke="${t.main}" stroke-width="7" opacity=".55" filter="url(#pg-${k})"/>
+    <ellipse cx="60" cy="64" rx="47" ry="45" fill="none" stroke="#7fe8ff" stroke-width="3" opacity=".9" filter="url(#pg-${k})"/>
+  </g>
+  <ellipse class="spin" cx="60" cy="64" rx="49" ry="47" fill="none" stroke="#bff4ff" stroke-width="1.6" stroke-linecap="round" stroke-dasharray="46 22 12 36"/>
+  <ellipse class="spin2" cx="60" cy="64" rx="44" ry="42" fill="none" stroke="#d08bff" stroke-width="1.6" stroke-linecap="round" stroke-dasharray="30 40 18 26"/>
+  ${sparks}
+  <path d="M47 36 C41 17 54 3 80 -2 C69 10 68 23 74 35 Z" fill="url(#ph-${k})" stroke="#3a0f60" stroke-width="1"/>
+  <path d="M49 27 Q60 24 70 28 M52 18 Q62 14 70 18 M58 10 Q66 6 72 8" fill="none" stroke="#3a0f60" stroke-width="1.2" opacity=".55"/>
+  <circle cx="60" cy="66" r="36" fill="url(#pb-${k})" stroke="${lo}" stroke-width="1.2"/>
+  <ellipse cx="38" cy="58" rx="6" ry="8" fill="${hi}" opacity=".55"/>
+  <ellipse cx="44" cy="84" rx="7" ry="5.5" fill="${hi}" opacity=".45"/>
+  <ellipse cx="40" cy="44" rx="4" ry="3" fill="${hi}" opacity=".5"/>
+  <ellipse cx="76" cy="92" rx="5" ry="3.5" fill="${hi}" opacity=".4"/>
+  <circle cx="67" cy="65" r="24" fill="${lo}" opacity=".45"/>
+  <circle cx="67" cy="64" r="22.5" fill="url(#ps-${k})"/>
+  <circle cx="69" cy="64" r="15" fill="url(#pi-${k})" stroke="#8a3d00" stroke-width=".8"/>
+  <circle cx="69" cy="64" r="10" fill="none" stroke="#ffd866" stroke-width="8" stroke-dasharray=".7 1.6" opacity=".55"/>
+  <path d="M69 50.5 Q75 64 69 77.5 Q63 64 69 50.5 Z" fill="#141010"/>
+  <ellipse cx="60" cy="54" rx="5.5" ry="3.5" fill="#fff" opacity=".85"/>
+  <ellipse cx="46" cy="44" rx="12" ry="7" fill="#fff" opacity=".35" transform="rotate(-30 46 44)"/>
+  <path d="M56 99 L60 93 L64 99 Z" fill="#f4efe6" stroke="#9c948c" stroke-width=".6"/>
+</svg>`;
+}
+function renderBoard(){
+  cells.forEach(c=>{
+    const d=$('#cell'+c.i);
+    d.classList.toggle('selectable',!!(selecting&&selecting.valid.has(c.i)));
+    if(c.type!=='monster') return;
+    const own=d.querySelector('.own');
+    if(c.owner!==null){ const t=players[c.owner].team; own.style.background=c.upgraded?t.dark:t.light; own.style.opacity=c.upgraded?.62:.6; d.querySelector('.frame').style.borderColor=c.upgraded?t.dark:t.main; }
+    else { own.style.background='transparent'; d.querySelector('.frame').style.borderColor=''; }
+    let extra='';
+    if(c.upgraded) extra+='<div class="star">★</div>';
+    if(c.awakened) extra+='<div class="awk">각성×1.5</div>';
+    if(c.pot>0) extra+=`<div class="pot">${c.pot}c</div>`;
+    d.querySelectorAll('.star,.awk,.pot').forEach(e=>e.remove());
+    d.insertAdjacentHTML('beforeend',extra);
+  });
+  // pawns
+  const S=$('#board').clientWidth;
+  const groups={};
+  players.forEach(p=>{ if(!p.bankrupt) (groups[p.pos]=groups[p.pos]||[]).push(p); });
+  players.forEach(p=>{
+    const el=$('#pawn-'+p.team.key);
+    el.style.display=p.bankrupt?'none':'block';
+    const g=groups[p.pos]||[p], k=g.indexOf(p);
+    const [x,y,w,h]=cellRect(p.pos);
+    const size=S*0.058;
+    const cx=(x+w/2)/100*S, cy=(y+h/2)/100*S;
+    const off=size*0.42, ox=[-off,off,-off,off][k]*(g.length>1?1:0), oy=[-off,-off,off,off][k]*(g.length>2?1:(g.length>1?0.35:0));
+    Object.assign(el.style,{width:size+'px',height:size+'px',left:(cx-size/2+ox)+'px',top:(cy-size/2+oy)+'px'});
+    el.classList.toggle('active',players[turn]===p);
+  });
+}
+function render(){ renderPanels(); renderBoard(); $('#turnLbl').innerHTML=over?'게임 종료':tname(players[turn])+' 차례'; }
+
+function layout(){
+  const vw=innerWidth, vh=innerHeight;
+  let size;
+  if(vw/vh>1.25){ const side=Math.max(220,Math.min(380,(vw-vh)/2)); size=Math.min(vh-16,vw-2*side-32); }
+  else size=Math.min(vw-16,vh*0.75);
+  const b=$('#board'); b.style.width=b.style.height=Math.max(320,size)+'px';
+  if(players.length) renderBoard();
+}
+addEventListener('resize',layout);
+
+// dice
+const PIPS={1:[4],2:[0,8],3:[0,4,8],4:[0,2,6,8],5:[0,2,4,6,8],6:[0,2,3,5,6,8]};
+function drawDie(el,v){ el.innerHTML=[...Array(9)].map((_,i)=>`<i class="${PIPS[v].includes(i)?'on':''}"></i>`).join(''); }
+async function rollDice(){
+  const d1=$('#d1'), d2=$('#d2'); d1.classList.remove('dbl'); d2.classList.remove('dbl');
+  for(let k=0;k<9;k++){ drawDie(d1,1+Math.floor(Math.random()*6)); drawDie(d2,1+Math.floor(Math.random()*6)); await sleep(55); }
+  const a=1+Math.floor(Math.random()*6), b=1+Math.floor(Math.random()*6);
+  drawDie(d1,a); drawDie(d2,b);
+  if(a===b){ d1.classList.add('dbl'); d2.classList.add('dbl'); }
+  return [a,b];
+}
+
+// ============================ MODALS ============================
+function openBox(overlayId, boxId, html){
+  return new Promise(res=>{
+    const ov=$(overlayId), box=$(boxId);
+    box.innerHTML=html; ov.classList.add('show');
+    box.querySelectorAll('[data-v]').forEach(b=>b.onclick=()=>{ ov.classList.remove('show'); res(b.dataset.v); });
+  });
+}
+function modal({title,html='',buttons=[]}){
+  const btns=buttons.map(b=>`<button class="btn ${b.cls||''}" data-v="${b.v}" ${b.disabled?'disabled':''}>${b.label}</button>`).join('');
+  return openBox('#modal','#mbox',`<h2>${title}</h2>${html}${btns?`<div class="mbtns">${btns}</div>`:''}`);
+}
+function viewer(title,html){
+  return openBox('#viewer','#vbox',`<h2>${title}</h2>${html}<div class="mbtns"><button class="btn" data-v="x">닫기</button></div>`);
+}
+$('#viewer').addEventListener('click',e=>{ if(e.target.id==='viewer') e.target.classList.remove('show'); });
+
+function monsterCardHTML(c,extra=''){
+  const own=c.owner!==null?players[c.owner]:null;
+  return `<div class="card ${c.upgraded?'up':''}">
+    <img class="cardimg" src="${url(c.img)}" alt="${c.name}">
+    <div class="meta"><b>${c.name}</b> ${c.upgraded?'<span class="pill e">강화됨</span>':''}${c.awakened?'<span class="pill a">각성</span>':''}<br>
+    필요 무기: <b>${c.reqText}</b><br>
+    통행료: <b>${curToll(c)}</b>${c.awakened?` → <b>${Math.round(curToll(c)*1.5)}</b>`:''} · 매각: <b>${curSell(c)}</b><br>
+    ${own?`소유: ${tname(own)}`:'소유자 없음'}${c.pot?` · 쌓인 코인 <b>${c.pot}</b>`:''}
+    ${!c.upgraded?`<br>강화 비용 <b>${c.up}</b> (통행료 ${c.toll[1]} / 매각 ${c.sell[1]})`:''}${extra}</div></div>`;
+}
+function weaponCardHTML(w){
+  return `<div class="card"><img class="cardimg" src="${wImg(w.name)}" alt="${w.name}">
+    <div class="meta"><b>${w.name}</b> ${w.type==='c'?'<span class="pill c">소모형</span> 1회용':`<span class="pill e">장비형</span> 남은 사용 <b>${w.uses}</b>/${EQUIP_USES}`}</div></div>`;
+}
+function showMonsters(p){
+  const ms=owned(p);
+  viewer(`${p.team.name} · 내 몬스터 (${ms.length})`, ms.length?`<div class="cards">${ms.map(c=>monsterCardHTML(c)).join('')}</div>`:'<p>소유한 몬스터가 없습니다.</p>');
+}
+function showWeapons(p){
+  const ws=[...p.weapons].sort((a,b)=>a.type.localeCompare(b.type)||a.name.localeCompare(b.name));
+  viewer(`${p.team.name} · 내 무기 (${ws.length})`, `<div class="cards">${ws.map(weaponCardHTML).join('')}</div>`);
+}
+function onCellClick(c){
+  if(selecting){ if(selecting.valid.has(c.i)){ const r=selecting.resolve; selecting=null; $('#cancelSel').style.display='none'; renderBoard(); r(c.i);} return; }
+  if(c.type==='monster') viewer(c.name, `<div style="max-width:460px">${monsterCardHTML(c)}</div>`);
+  else viewer(c.name, `<p>${{start:'도착 시 월급 40코인, 지나가면 30코인.',jail:'도착하면 3번 쉬기. 자기 차례에 주사위 2개가 같은 숫자면 탈출하고 그 수만큼 이동.',awaken:'내 몬스터 하나를 골라, 누군가 그 칸에 걸릴 때까지 통행료 1.5배.',warp:'10코인을 내고 원하는 몬스터 칸으로 이동. 시작점을 지나면 월급 20코인.'}[c.type]}</p>`);
+}
+
+// board cell selection (워프)
+let selecting=null;
+function selectCell(valid){
+  return new Promise(res=>{
+    selecting={valid:new Set(valid),resolve:res};
+    const cb=$('#cancelSel'); cb.style.display='inline-block';
+    cb.onclick=()=>{ selecting=null; cb.style.display='none'; renderBoard(); res(null); };
+    renderBoard();
+  });
+}
+
+// roll button
+let rollWait=null;
+$('#rollBtn').onclick=()=>{ if(rollWait){ const r=rollWait; rollWait=null; $('#rollBtn').disabled=true; r(); } };
+function waitRoll(){ $('#rollBtn').disabled=false; return new Promise(r=>rollWait=r); }
+
+// ============================ GAME FLOW ============================
+const aiDelay = () => sleep(650);
+
+async function moveSteps(p,steps){
+  for(let s=1;s<=steps;s++){
+    p.pos=(p.pos+1)%N;
+    if(p.pos===START && s<steps){ addCoins(p,30); log(`${tname(p)} 시작 칸 통과 → 월급 <b>30</b>코인`,p); }
+    render(); await sleep(170);
+  }
+  if(p.pos===START){ addCoins(p,40); log(`${tname(p)} 시작 칸 도착 → 월급 <b>40</b>코인`,p); render(); }
+}
+
+async function takeTurn(p){
+  render();
+  const n=refill(p);
+  if(n) log(`${tname(p)} 무기 카드 <b>${n}</b>장 보충 (10장)`,p);
+  render();
+
+  if(p.jail>0){
+    msg(`${tname(p)} 지하감옥 탈출 시도! 같은 숫자(더블)가 나와야 해요.`);
+    if(p.human) await waitRoll(); else await aiDelay();
+    const [a,b]=await rollDice();
+    if(a===b){
+      p.jail=0; log(`${tname(p)} 🎲 ${a}+${b} 더블! 지하감옥 탈출 → ${a+b}칸 이동`,p);
+      msg(`더블! 탈출 성공 → ${a+b}칸 이동`);
+      await moveSteps(p,a+b); await resolve(p);
+    } else {
+      p.jail--;
+      log(`${tname(p)} 🎲 ${a}+${b} 탈출 실패 ${p.jail>0?`(남은 ${p.jail}번)`:'— 다음 차례부터 자유'}`,p);
+      msg(`탈출 실패 (${a}, ${b})`);
+      render(); await sleep(700);
+    }
+    return;
+  }
+
+  msg(p.human?`${tname(p)} 주사위를 굴리세요!`:`${tname(p)}(AI)가 주사위를 굴립니다...`);
+  if(p.human) await waitRoll(); else await aiDelay();
+  const [a,b]=await rollDice();
+  log(`${tname(p)} 🎲 ${a} + ${b} = <b>${a+b}</b>`,p);
+  msg(`${a} + ${b} = ${a+b}칸 이동`);
+  await moveSteps(p,a+b);
+  await resolve(p);
+}
+
+async function resolve(p){
+  if(over) return;
+  const c=cells[p.pos];
+  if(c.type==='jail'){ p.jail=3; log(`${tname(p)} ⛓ 지하감옥에 갇혔다! (3번 쉬기, 더블이면 탈출)`,p); msg('지하감옥에 갇혔습니다!'); render(); await sleep(700); }
+  else if(c.type==='awaken') await doAwaken(p);
+  else if(c.type==='warp') await doWarp(p);
+  else if(c.type==='monster') await doMonster(p,c);
+  render();
+}
+
+async function doAwaken(p){
+  const ms=owned(p).filter(c=>!c.awakened);
+  if(!ms.length){ log(`${tname(p)} 몬스터 각성 칸 — 각성시킬 몬스터가 없음`,p); msg('각성시킬 몬스터가 없습니다.'); await sleep(700); return; }
+  let target;
+  if(p.human){
+    const v=await modal({title:'몬스터 각성!',html:`<p>각성시킬 몬스터를 고르세요. 누군가(나 포함) 그 칸에 걸릴 때까지 통행료가 <b>1.5배</b>가 됩니다.</p>`,
+      buttons:ms.map(c=>({label:`${c.name} (${curToll(c)}→${Math.round(curToll(c)*1.5)})`,v:c.i}))});
+    target=cells[+v];
+  } else { await aiDelay(); target=ms.sort((a,b)=>curToll(b)-curToll(a))[0]; }
+  target.awakened=true;
+  log(`${tname(p)} 🔮 <b>${target.name}</b> 각성! 통행료 ${Math.round(curToll(target)*1.5)}`,p);
+  msg(`${target.name} 각성!`);
+}
+
+function warpScore(p,c){ // AI용
+  if(c.owner===null){ const opt=claimOptions(p,c).length; return opt? 1000+curToll(c) : 300-curToll(c); }
+  if(c.owner===p.idx) return c.upgraded?400:600;
+  return -curToll(c)*(c.awakened?1.5:1);
+}
+async function doWarp(p){
+  const targets=cells.filter(c=>c.type==='monster').map(c=>c.i);
+  if(p.coins<10){ log(`${tname(p)} 워프 — 코인이 부족해 이동하지 못함`,p); msg('코인이 부족해 워프할 수 없습니다.'); await sleep(700); return; }
+  let dest;
+  if(p.human){
+    msg('🌀 워프! 이동할 <b>몬스터 칸</b>을 클릭하세요 (10코인)');
+    dest=await selectCell(targets);
+    if(dest===null){ log(`${tname(p)} 워프를 사용하지 않음`,p); msg('워프 취소'); return; }
+  } else {
+    await aiDelay();
+    dest=targets.map(i=>cells[i]).sort((a,b)=>warpScore(p,b)-warpScore(p,a))[0].i;
+  }
+  addCoins(p,-10);
+  log(`${tname(p)} 🌀 10코인 지불 → <b>${cells[dest].name}</b>(으)로 워프`,p);
+  const passed = dest<WARP; // 시계방향으로 시작점을 지나야 도착
+  p.pos=dest; render(); await sleep(450);
+  if(passed){ addCoins(p,20); log(`${tname(p)} 워프 중 시작점 통과 → 월급 <b>20</b>코인`,p); }
+  render();
+  await doMonster(p,cells[dest]);
+}
+
+async function doMonster(p,c){
+  if(c.owner===null){
+    const opts=claimOptions(p,c);
+    const fine=curToll(c);
+    let choice=null;
+    if(opts.length){
+      if(p.human){
+        const labels=opts.map((o,k)=>({label:`${o.join(' + ')} 사용해서 소유`,v:k}));
+        const v=await modal({title:`${c.name} — 주인 없는 몬스터!`,
+          html:`<div style="max-width:420px;margin:auto">${monsterCardHTML(c)}</div><p>필요 무기를 가지고 있어요. 무기를 사용해 이 칸을 소유할 수 있습니다.${c.pot?` 칸에 쌓인 <b>${c.pot}</b>코인도 획득!`:''}</p>`,
+          buttons:[...labels,{label:`포기하고 벌금 ${fine} 내기`,v:'no',cls:'sec'}]});
+        if(v!=='no') choice=opts[+v];
+      } else {
+        await aiDelay();
+        // 소모형을 먼저, 장비형은 많이 남은 것을 아끼는 방향
+        const cost=o=>o.reduce((s,n)=>s+(WEAPONS[n]==='c'?1:2),0);
+        choice=[...opts].sort((a,b)=>cost(a)-cost(b))[0];
+      }
+    }
+    if(choice){
+      choice.forEach(n=>useWeapon(p,n));
+      c.owner=p.idx;
+      log(`${tname(p)} ⚔ ${choice.join(' + ')} 사용 → <b>${c.name}</b> 소유!${c.pot?` (쌓인 코인 ${c.pot} 획득)`:''}`,p);
+      msg(`${c.name} 획득!`);
+      if(c.pot){ addCoins(p,c.pot); c.pot=0; }
+      render(); await sleep(600);
+    } else {
+      msg(`${c.name}: 무기가 없어 벌금 ${fine}코인`);
+      log(`${tname(p)} ${c.name} — ${opts.length?'소유 포기':'필요 무기 없음'}, 벌금 <b>${fine}</b>코인을 칸에 지불`,p);
+      const paid=await pay(p,fine,null);
+      c.pot+=paid; render(); await sleep(600);
+    }
+    return;
+  }
+  if(c.owner===p.idx){
+    if(c.awakened){ c.awakened=false; log(`${tname(p)} 자신의 각성 몬스터 ${c.name}에 도착 → 각성 해제`,p); }
+    if(!c.upgraded){
+      if(p.coins<c.up){ msg(`${c.name}: 강화 비용이 부족합니다.`); await sleep(600); return; }
+      let yes;
+      if(p.human){
+        yes=(await modal({title:`${c.name} 강화`,html:`<div style="max-width:420px;margin:auto">${monsterCardHTML(c)}</div><p>강화 비용 <b>${c.up}</b>코인. 통행료 ${c.toll[0]} → <b>${c.toll[1]}</b>, 매각 ${c.sell[0]} → <b>${c.sell[1]}</b></p>`,
+          buttons:[{label:`강화하기 (-${c.up})`,v:'y'},{label:'그만두기',v:'n',cls:'sec'}]}))==='y';
+      } else { await aiDelay(); yes=p.coins-c.up>=150; }
+      if(yes){ addCoins(p,-c.up); c.upgraded=true; log(`${tname(p)} ★ <b>${c.name}</b> 강화! (통행료 ${c.toll[1]})`,p); msg(`${c.name} 강화 완료!`); }
+      else msg(`${c.name}에 도착 (강화 안 함)`);
+    } else { msg(`내 몬스터 ${c.name}에서 휴식`); await sleep(500); }
+    return;
+  }
+  // 남의 칸
+  const owner=players[c.owner];
+  let toll=curToll(c);
+  if(c.awakened){ toll=Math.round(toll*1.5); c.awakened=false; }
+  log(`${tname(p)} ${c.name}(${tname(owner)}) 도착 → 통행료 <b>${toll}</b>코인`,p);
+  msg(`${c.name}: ${owner.team.name}에게 통행료 ${toll}코인`);
+  const paid=await pay(p,toll,owner);
+  addCoins(owner,paid); owner.earned+=paid;
+  render(); await sleep(600);
+}
+
+// 지불: 부족하면 매각, 그래도 부족하면 파산. 실제로 지불한 금액 반환
+async function pay(p,amount){
+  if(p.coins<amount) await raiseFunds(p,amount);
+  if(p.coins<amount){
+    const paid=p.coins; p.coins=0; p.paid+=paid; coinFx(p,-paid);
+    p.bankrupt=true; over=true;
+    log(`💀 ${tname(p)} 파산! (${amount}코인이 필요했지만 ${paid}코인뿐)`,p);
+    render();
+    return paid;
+  }
+  addCoins(p,-amount); p.paid+=amount;
+  render();
+  return amount;
+}
+function sellCell(p,c){
+  const v=curSell(c);
+  c.owner=null; c.upgraded=false; c.awakened=false;
+  addCoins(p,v);
+  log(`${tname(p)} 💸 <b>${c.name}</b> 매각 → +${v}코인`,p);
+  render();
+}
+async function raiseFunds(p,amount){
+  while(p.coins<amount && owned(p).length){
+    const ms=owned(p);
+    if(p.human){
+      const v=await modal({title:'코인이 부족합니다!',
+        html:`<p>필요: <b>${amount}</b>코인 · 보유: <b>${p.coins}</b>코인 · 부족: <b style="color:#ff7a7a">${amount-p.coins}</b>코인</p><p>매각할 몬스터를 고르세요. 매각한 칸은 주인 없는 칸이 됩니다.</p>
+          <div class="cards">${ms.map(c=>monsterCardHTML(c,`<div class="mbtns"><button class="btn danger" data-v="${c.i}">매각 +${curSell(c)}</button></div>`)).join('')}</div>`});
+      sellCell(p,cells[+v]);
+    } else {
+      await sleep(400);
+      sellCell(p,ms.sort((a,b)=>curSell(a)-curSell(b))[0]);
+    }
+  }
+}
+
+// ============================ END / RANKING ============================
+function judge(){
+  const bankrupt=players.find(p=>p.bankrupt);
+  const rows=players.map(p=>{
+    const ms=owned(p);
+    const monVal=ms.reduce((s,c)=>s+curSell(c),0);
+    const tollPower=ms.reduce((s,c)=>s+curToll(c),0);
+    const eq=p.weapons.filter(w=>w.type==='e'), cs=p.weapons.length-eq.length;
+    const wepVal=cs*5+eq.reduce((s,w)=>s+w.uses*3,0); // 동점 판정용 무기 가치
+    const best=ms.sort((a,b)=>curToll(b)-curToll(a))[0];
+    return {p,ms,monVal,tollPower,wepVal,total:p.coins+monVal,best};
+  });
+  rows.sort((a,b)=>{
+    if(a.p.bankrupt!==b.p.bankrupt) return a.p.bankrupt?1:-1;
+    return (b.total-a.total)||(b.tollPower-a.tollPower)||(b.wepVal-a.wepVal);
+  });
+  return rows.map((r,k)=>{
+    const p=r.p; let why;
+    if(p.bankrupt) why=`통행료/벌금을 낼 코인이 부족해 몬스터를 모두 매각했지만 파산했습니다. 그동안 통행료 수입 ${p.earned}코인, 지출 ${p.paid}코인.`;
+    else {
+      const parts=[`총자산 <b>${r.total}</b>코인 (코인 ${p.coins} + 몬스터 매각가치 ${r.monVal})`];
+      parts.push(`몬스터 ${r.ms.length}칸 (강화 ${r.ms.filter(c=>c.upgraded).length}칸), 통행료 합계 ${r.tollPower}`);
+      if(r.best) parts.push(`가장 강력한 몬스터: ${r.best.name} (통행료 ${curToll(r.best)})`);
+      parts.push(`통행료 수입 ${p.earned} / 지출 ${p.paid}`);
+      if(k===0) parts.push('→ 살아남은 팀 중 자산이 가장 많아 <b>우승</b>!');
+      else {
+        const prev=rowsCache[k-1];
+        if(prev && prev.total===r.total) parts.push(`→ 총자산이 같아 통행료 합계/무기 보유로 순위 결정`);
+        else if(prev) parts.push(`→ ${k}위보다 총자산 ${prev.total-r.total}코인 부족`);
+      }
+      why=parts.join('<br>');
+    }
+    return {...r,rank:k+1,why};
+  });
+}
+let rowsCache=[];
+async function endGame(){
+  over=true; render();
+  await sleep(800);
+  rowsCache=[]; const pre=judge(); rowsCache=pre; const res=judge();
+  const loser=players.find(p=>p.bankrupt);
+  const medal=['🥇','🥈','🥉','💀'];
+  await modal({title:'게임 종료! — 최종 순위',
+    html:`<p>${tname(loser)}이(가) 파산하여 게임이 끝났습니다. 남은 코인과 몬스터의 매각 가치를 합친 <b>총자산</b>으로 순위를 판정했어요. (파산한 팀은 최하위, 총자산이 같으면 통행료 합계 → 남은 무기 순)</p>
+    <table class="rank"><tr><th>순위</th><th>팀</th><th>판정 이유</th></tr>
+    ${res.map(r=>`<tr><td class="no">${medal[r.rank-1]} ${r.rank}</td><td>${tname(r.p)}<br><small>${r.p.human?'플레이어':'AI'}</small></td><td>${r.why}</td></tr>`).join('')}</table>`,
+    buttons:[{label:'다시 하기',v:'r'}]});
+  location.reload();
+}
+
+// ============================ SETUP ============================
+async function setup(){
+  const v=await modal({title:'몬스터 마블',html:'<p style="text-align:center">몇 명이 플레이하나요? 부족한 인원은 AI가 플레이합니다.<br><small style="color:var(--muted)">플레이어는 레드 → 블루 → 옐로 → 그린 팀 순서로 배정돼요.</small></p>',
+    buttons:[1,2,3,4].map(n=>({label:`${n}명`,v:n}))});
+  const humans=+v;
+  players=TEAMS.map((t,i)=>({idx:i,team:t,human:i<humans,coins:1500,weapons:[],pos:0,jail:0,bankrupt:false,earned:0,paid:0}));
+  // 기본 몬스터 카드 배분 → 해당 칸 소유
+  players.forEach((p,i)=>{ cells[1+i].owner=i; refill(p); });
+  buildBoard(); layout(); render();
+  log('🎮 몬스터 마블 시작! 모두에게 기본 몬스터 카드 1장, 1500코인, 무기 카드 10장이 지급되었습니다.');
+  await modal({title:'카드 배분',
+    html:`<p>모두에게 <b>기본 몬스터 카드</b> 1장과 <b>1500코인</b>, <b>무기 카드 10장</b>(소모형 60% · 장비형 40%)을 나눠줬어요. 받은 기본 몬스터와 같은 칸은 그 팀의 소유입니다.</p>
+    <div class="deal">${players.map(p=>`<div class="card"><img class="cardimg" src="${url('기본몬스터카드/'+p.team.basic)}"><div class="meta">${tname(p)} ${p.human?'(플레이어)':'(AI)'}<br>소모형 ${p.weapons.filter(w=>w.type==='c').length}장 · 장비형 ${p.weapons.filter(w=>w.type==='e').length}장</div></div>`).join('')}</div>`,
+    buttons:[{label:'게임 시작!',v:'go'}]});
+  turn=0;
+  while(!over){
+    const p=players[turn];
+    await takeTurn(p);
+    if(over) break;
+    await sleep(300);
+    turn=(turn+1)%players.length;
+    render();
+  }
+  await endGame();
+}
+
+// ============================ LOADING ============================
+(async function load(){
+  const ld=$('#loading');
+  const bgImg=new Image(); bgImg.src=url('로딩화면.png');
+  bgImg.onload=()=>ld.style.backgroundImage=`url('${bgImg.src}')`;
+  const list=['몬스터 보드게임 판.png',...TEAMS.map(t=>'기본몬스터카드/'+t.basic),...Object.keys(MONSTERS).map(n=>'몬스터카드/'+n+'.png'),...Object.keys(WEAPONS).map(n=>'무기/'+n+'.png')];
+  let done=0;
+  const minTime=sleep(1800);
+  await Promise.all(list.map(src=>new Promise(r=>{ const im=new Image(); im.onload=im.onerror=()=>{ done++; $('#loadfill').style.width=(done/list.length*100)+'%'; $('#loadtxt').textContent=`불러오는 중... ${done}/${list.length}`; r(); }; im.src=url(src); })));
+  await minTime;
+  $('#loadtxt').textContent='준비 완료!';
+  $('#loadbar').style.display='none';
+  const sb=$('#startBtn'); sb.style.display='block';
+  sb.onclick=()=>{ ld.style.display='none'; setup(); };
+})();
+</script>
+</body>
+</html>
