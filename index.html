@@ -92,6 +92,8 @@ button{font-family:inherit;cursor:pointer}
 #topBox{position:absolute;left:13%;right:13%;top:12%;height:12%;background:rgba(30,18,8,.82);border:2px solid var(--line);border-radius:12px;padding:6px 10px;overflow:auto;font-size:clamp(10px,1.35vmin,14px);line-height:1.45}
 #topBox .ln{border-left:4px solid var(--c,#888);padding-left:6px;margin-bottom:2px}
 #ctrl{position:absolute;left:13%;right:13%;bottom:12%;height:13%;background:rgba(30,18,8,.88);border:2px solid var(--gold);border-radius:12px;display:flex;align-items:center;gap:2%;padding:0 2%}
+#muteBtn{flex:none;width:clamp(28px,4vmin,40px);aspect-ratio:1;border-radius:50%;border:2px solid var(--line);background:rgba(0,0,0,.4);font-size:clamp(13px,2vmin,20px);padding:0;line-height:1}
+#muteBtn:hover{border-color:var(--gold)}
 #turnLbl{font-family:'Black Han Sans','Noto Sans KR',sans-serif;font-size:clamp(14px,2.4vmin,28px);white-space:nowrap}
 #msg{flex:1;font-size:clamp(11px,1.6vmin,17px);font-weight:700;min-width:0}
 .dice{display:flex;gap:8px}
@@ -151,6 +153,7 @@ button{font-family:inherit;cursor:pointer}
     <div id="board">
       <div id="topBox"></div>
       <div id="ctrl">
+        <button id="muteBtn" title="효과음 켜기/끄기">🔊</button>
         <div id="turnLbl">-</div>
         <div class="dice"><div class="die" id="d1"></div><div class="die" id="d2"></div></div>
         <div id="msg"></div>
@@ -307,7 +310,51 @@ function log(text, p){
 function msg(t){ $('#msg').innerHTML=t; }
 function tname(p){ return `<b style="color:${p.team.text}">${p.team.name}</b>`; }
 
+// ============================ SOUND ============================
+// 효과음은 파일 없이 Web Audio로 직접 합성
+const SFX = (()=>{
+  let ctx=null, master=null, muted=false;
+  try{ muted=localStorage.getItem('mm-muted')==='1'; }catch(e){}
+  function init(){
+    if(!ctx){ const AC=window.AudioContext||window.webkitAudioContext; if(!AC) return null;
+      ctx=new AC(); master=ctx.createGain(); master.gain.value=.5; master.connect(ctx.destination); }
+    if(ctx.state==='suspended') ctx.resume();
+    return ctx;
+  }
+  function tone(f,dur,{type='sine',vol=.3,at=0,to=null,attack=.005}={}){
+    if(muted||!init()) return;
+    const t=ctx.currentTime+at, o=ctx.createOscillator(), g=ctx.createGain();
+    o.type=type; o.frequency.setValueAtTime(f,t); if(to) o.frequency.exponentialRampToValueAtTime(to,t+dur);
+    g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(vol,t+attack); g.gain.exponentialRampToValueAtTime(.0001,t+dur);
+    o.connect(g); g.connect(master); o.start(t); o.stop(t+dur+.02);
+  }
+  function noise(dur,{vol=.3,at=0,freq=1800,q=1.5}={}){
+    if(muted||!init()) return;
+    const t=ctx.currentTime+at, len=Math.ceil(ctx.sampleRate*dur), buf=ctx.createBuffer(1,len,ctx.sampleRate), d=buf.getChannelData(0);
+    for(let i=0;i<len;i++) d[i]=(Math.random()*2-1)*(1-i/len);
+    const s=ctx.createBufferSource(), f=ctx.createBiquadFilter(), g=ctx.createGain();
+    s.buffer=buf; f.type='bandpass'; f.frequency.value=freq; f.Q.value=q; g.gain.value=vol;
+    s.connect(f); f.connect(g); g.connect(master); s.start(t);
+  }
+  return {
+    init,
+    get muted(){ return muted; },
+    toggle(){ muted=!muted; try{ localStorage.setItem('mm-muted',muted?'1':'0'); }catch(e){} if(!muted) init(); return muted; },
+    rattle(){ noise(.045,{vol:.35,freq:900+Math.random()*1600,q:4}); },                 // 주사위 구르는 소리
+    diceLand(){ noise(.08,{vol:.5,freq:500,q:2}); noise(.08,{vol:.45,freq:650,q:2,at:.07}); },
+    step(){ tone(520,.09,{type:'triangle',vol:.18,to:780}); },                           // 말 한 칸 이동
+    warp(){ tone(180,.5,{type:'sawtooth',vol:.12,to:1400}); tone(360,.5,{type:'sine',vol:.15,to:2200,at:.05}); },
+    coinIn(){ tone(988,.08,{type:'square',vol:.12}); tone(1319,.32,{type:'square',vol:.12,at:.07}); },
+    coinOut(){ tone(784,.09,{type:'triangle',vol:.22}); tone(523,.22,{type:'triangle',vol:.2,at:.08}); },
+    bankrupt(){ [392,370,349].forEach((f,i)=>tone(f,.42,{type:'sawtooth',vol:.14,at:i*.42}));
+                tone(330,1.3,{type:'sawtooth',vol:.15,at:1.26,to:220}); },
+    gameEnd(){ [523,659,784,1047].forEach((f,i)=>tone(f,.22,{type:'square',vol:.1,at:i*.14}));
+               [523,659,784,1047].forEach(f=>tone(f,1.4,{type:'triangle',vol:.12,at:.62})); },
+  };
+})();
+
 function coinFx(p,delta){
+  if(delta>0) SFX.coinIn(); else if(delta<0) SFX.coinOut();
   const el=document.querySelector(`#p-${p.team.key} .coin-delta`); if(!el) return;
   el.textContent=(delta>0?'+':'')+delta; el.style.color=delta>0?'#7ae07a':'#ff7a7a';
   el.classList.add('show'); clearTimeout(el._t); el._t=setTimeout(()=>el.classList.remove('show'),1300);
@@ -451,9 +498,9 @@ const PIPS={1:[4],2:[0,8],3:[0,4,8],4:[0,2,6,8],5:[0,2,4,6,8],6:[0,2,3,5,6,8]};
 function drawDie(el,v){ el.innerHTML=[...Array(9)].map((_,i)=>`<i class="${PIPS[v].includes(i)?'on':''}"></i>`).join(''); }
 async function rollDice(){
   const d1=$('#d1'), d2=$('#d2'); d1.classList.remove('dbl'); d2.classList.remove('dbl');
-  for(let k=0;k<9;k++){ drawDie(d1,1+Math.floor(Math.random()*6)); drawDie(d2,1+Math.floor(Math.random()*6)); await sleep(55); }
+  for(let k=0;k<9;k++){ drawDie(d1,1+Math.floor(Math.random()*6)); drawDie(d2,1+Math.floor(Math.random()*6)); SFX.rattle(); await sleep(55); }
   const a=1+Math.floor(Math.random()*6), b=1+Math.floor(Math.random()*6);
-  drawDie(d1,a); drawDie(d2,b);
+  drawDie(d1,a); drawDie(d2,b); SFX.diceLand();
   if(a===b){ d1.classList.add('dbl'); d2.classList.add('dbl'); }
   return [a,b];
 }
@@ -516,6 +563,8 @@ function selectCell(valid){
 
 // roll button
 let rollWait=null;
+const muteBtn=$('#muteBtn'); muteBtn.textContent=SFX.muted?'🔇':'🔊';
+muteBtn.onclick=()=>{ muteBtn.textContent=SFX.toggle()?'🔇':'🔊'; };
 $('#rollBtn').onclick=()=>{ if(rollWait){ const r=rollWait; rollWait=null; $('#rollBtn').disabled=true; r(); } };
 function waitRoll(){ $('#rollBtn').disabled=false; return new Promise(r=>rollWait=r); }
 
@@ -526,7 +575,7 @@ async function moveSteps(p,steps){
   for(let s=1;s<=steps;s++){
     p.pos=(p.pos+1)%N;
     if(p.pos===START && s<steps){ addCoins(p,30); log(`${tname(p)} 시작 칸 통과 → 월급 <b>30</b>코인`,p); }
-    render(); await sleep(170);
+    SFX.step(); render(); await sleep(170);
   }
   if(p.pos===START){ addCoins(p,40); log(`${tname(p)} 시작 칸 도착 → 월급 <b>40</b>코인`,p); render(); }
 }
@@ -607,7 +656,7 @@ async function doWarp(p){
   addCoins(p,-10);
   log(`${tname(p)} 🌀 10코인 지불 → <b>${cells[dest].name}</b>(으)로 워프`,p);
   const passed = dest<WARP; // 시계방향으로 시작점을 지나야 도착
-  p.pos=dest; render(); await sleep(450);
+  SFX.warp(); p.pos=dest; render(); await sleep(450);
   if(passed){ addCoins(p,20); log(`${tname(p)} 워프 중 시작점 통과 → 월급 <b>20</b>코인`,p); }
   render();
   await doMonster(p,cells[dest]);
@@ -640,6 +689,14 @@ async function doMonster(p,c){
       if(c.pot){ addCoins(p,c.pot); c.pot=0; }
       render(); await sleep(600);
     } else {
+      if(!opts.length && p.human){
+        const short=p.coins<fine;
+        await modal({title:`${c.name} — 무기가 없어요!`,
+          html:`<div style="max-width:420px;margin:auto">${monsterCardHTML(c)}</div>
+            <p>이 몬스터를 소유하려면 <b>${c.reqText}</b>${c.req!=='*'&&c.req.length===1&&c.req[0].length>1?' (모두 필요)':''} 무기가 필요하지만, 가지고 있지 않아 <b>소유할 수 없어요.</b></p>
+            <p>벌금 <b>${fine}</b>코인을 이 칸에 내고 다음 차례로 넘어갑니다.${short?` <span style="color:#ff7a7a">코인이 부족해서 몬스터를 매각해야 해요.</span>`:''}</p>`,
+          buttons:[{label:'확인',v:'ok'}]});
+      }
       msg(`${c.name}: 무기가 없어 벌금 ${fine}코인`);
       log(`${tname(p)} ${c.name} — ${opts.length?'소유 포기':'필요 무기 없음'}, 벌금 <b>${fine}</b>코인을 칸에 지불`,p);
       const paid=await pay(p,fine,null);
@@ -677,7 +734,7 @@ async function pay(p,amount){
   if(p.coins<amount) await raiseFunds(p,amount);
   if(p.coins<amount){
     const paid=p.coins; p.coins=0; p.paid+=paid; coinFx(p,-paid);
-    p.bankrupt=true; over=true;
+    p.bankrupt=true; over=true; SFX.bankrupt();
     log(`💀 ${tname(p)} 파산! (${amount}코인이 필요했지만 ${paid}코인뿐)`,p);
     render();
     return paid;
@@ -746,7 +803,8 @@ function judge(){
 let rowsCache=[];
 async function endGame(){
   over=true; render();
-  await sleep(800);
+  await sleep(2600);
+  SFX.gameEnd();
   rowsCache=[]; const pre=judge(); rowsCache=pre; const res=judge();
   const loser=players.find(p=>p.bankrupt);
   const medal=['🥇','🥈','🥉','💀'];
@@ -797,7 +855,7 @@ async function setup(){
   $('#loadtxt').textContent='준비 완료!';
   $('#loadbar').style.display='none';
   const sb=$('#startBtn'); sb.style.display='block';
-  sb.onclick=()=>{ ld.style.display='none'; setup(); };
+  sb.onclick=()=>{ SFX.init(); ld.style.display='none'; setup(); };
 })();
 </script>
 </body>
