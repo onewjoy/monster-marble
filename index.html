@@ -70,6 +70,7 @@ button{font-family:inherit;cursor:pointer}
 .cell:hover .frame{border-color:rgba(255,255,255,.6)}
 .cell.selectable .frame{border-color:#fff;animation:pulse 1s infinite}
 .cell.selectable{z-index:3}
+#board.selecting .cell:not(.selectable)::after{content:'';position:absolute;inset:0;background:rgba(0,0,0,.6);pointer-events:none}
 @keyframes pulse{50%{border-color:#f2b632;box-shadow:0 0 14px #f2b632}}
 .cell .pot{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);background:rgba(0,0,0,.8);color:var(--gold);font-weight:900;border:2px solid var(--gold);border-radius:99px;padding:1px 7px;font-size:clamp(9px,1.1vmin,14px);white-space:nowrap;pointer-events:none}
 .cell .star{position:absolute;right:4%;top:3%;font-size:clamp(10px,1.6vmin,20px);color:#fff;text-shadow:0 0 4px #000,0 0 2px #000;pointer-events:none}
@@ -95,10 +96,10 @@ button{font-family:inherit;cursor:pointer}
 #muteBtn{flex:none;width:clamp(28px,4vmin,40px);aspect-ratio:1;border-radius:50%;border:2px solid var(--line);background:rgba(0,0,0,.4);font-size:clamp(13px,2vmin,20px);padding:0;line-height:1}
 #muteBtn:hover{border-color:var(--gold)}
 #turnLbl{font-family:'Black Han Sans','Noto Sans KR',sans-serif;font-size:clamp(14px,2.4vmin,28px);white-space:nowrap}
-#msg{flex:1;font-size:clamp(11px,1.6vmin,17px);font-weight:700;min-width:0}
+#msg{flex:1;max-height:100%;overflow:hidden;font-size:clamp(11px,1.6vmin,17px);font-weight:700;min-width:0}
 .dice{display:flex;gap:8px}
-.die{width:clamp(28px,5.2vmin,60px);aspect-ratio:1;background:#fffdf5;border-radius:18%;border:2px solid #3b2410;box-shadow:inset 0 -4px 0 #d9cbb0,0 3px 6px rgba(0,0,0,.6);display:grid;grid-template:repeat(3,1fr)/repeat(3,1fr);padding:12%}
-.die i{width:70%;aspect-ratio:1;border-radius:50%;background:#222;place-self:center;visibility:hidden}
+.die{width:clamp(28px,5.2vmin,60px);aspect-ratio:1;background:#fffdf5;border-radius:18%;border:2px solid #3b2410;box-shadow:inset 0 -4px 0 #d9cbb0,0 3px 6px rgba(0,0,0,.6);display:grid;grid-template:repeat(3,1fr)/repeat(3,1fr);padding:clamp(3px,.8vmin,7px)}
+.die i{width:70%;height:70%;border-radius:50%;background:#222;place-self:center;visibility:hidden}
 .die i.on{visibility:visible}
 .die.dbl{border-color:#e040fb}
 #rollBtn{font-size:clamp(13px,2vmin,22px);padding:.5em 1em}
@@ -136,6 +137,41 @@ button{font-family:inherit;cursor:pointer}
 .count-btns{display:flex;gap:14px;justify-content:center;margin-top:12px}
 .count-btns .btn{font-size:24px;width:80px;height:70px}
 .sellrow{display:flex;align-items:center;gap:10px}
+.howto{max-width:760px}
+.howto .lead{color:var(--muted);margin-top:-4px}
+.howto ol{list-style:none;padding:0;margin:14px 0 0;display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.howto li{background:rgba(0,0,0,.3);border:1px solid var(--line);border-radius:12px;padding:10px 12px;font-size:14px;line-height:1.55}
+.howto li b.h{display:block;color:var(--gold);font-size:15px;margin-bottom:2px}
+.howto .sp{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:10px}
+.howto .sp div{background:rgba(0,0,0,.3);border:1px solid var(--line);border-radius:10px;padding:8px;font-size:13px;line-height:1.45}
+.howto .sp b{color:var(--gold)}
+.howto .win{margin-top:10px;padding:10px 12px;border-radius:12px;background:rgba(242,182,50,.12);border:1px solid var(--gold);font-size:14px}
+@media (max-width:640px){.howto ol,.howto .sp{grid-template-columns:1fr}}
+/* 연습 한 판 (튜토리얼) */
+.tut{max-width:760px}
+.tut-step{display:inline-block;font-size:12px;font-weight:900;color:#2b1606;background:var(--gold);border-radius:99px;padding:2px 10px;margin-bottom:6px}
+.tut p{font-size:15px}
+.tut-w{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin:10px 0}
+.tw{position:relative;background:rgba(0,0,0,.3);border:2px solid transparent;border-radius:10px;padding:5px;text-align:center;font-size:12px;font-weight:700;transition:.3s}
+.tw img{width:100%;border-radius:6px;display:block;margin-bottom:4px}
+.tw.hit{border-color:var(--gold);box-shadow:0 0 16px rgba(242,182,50,.8);transform:translateY(-4px)}
+.tw.dim{opacity:.35;filter:grayscale(.8)}
+.tw.gone{opacity:.25;filter:grayscale(1)}
+.tw em{position:absolute;left:50%;top:-10px;transform:translateX(-50%);font-style:normal;background:var(--gold);color:#2b1606;font-size:11px;font-weight:900;border-radius:99px;padding:1px 8px;white-space:nowrap}
+.tw.gone em{background:#888}
+.tut-strip{position:relative;width:100%;aspect-ratio:1156/220;background:url("몬스터 보드게임 판.png") 0 0/173% auto no-repeat;border-radius:8px;margin:12px 0;box-shadow:0 4px 14px rgba(0,0,0,.6)}
+.tut-own{position:absolute;top:3%;height:94%;border-radius:4px;mix-blend-mode:multiply;opacity:.6}
+.tut-flag{position:absolute;top:-12px;transform:translateX(-50%);font-size:11px;font-weight:900;padding:1px 7px;border-radius:99px;white-space:nowrap;background:#fff;color:#000}
+.tut-pot{position:absolute;top:50%;transform:translate(-50%,-50%);background:rgba(0,0,0,.85);color:var(--gold);border:2px solid var(--gold);border-radius:99px;padding:1px 8px;font-weight:900;font-size:13px}
+.tut-pawn{position:absolute;top:52%;width:12%;aspect-ratio:1;transform:translate(-50%,-50%);transition:left .22s}
+.tut-pawn svg{width:100%;height:100%;overflow:visible;filter:drop-shadow(0 3px 3px rgba(0,0,0,.6))}
+.tut-dice{display:flex;align-items:center;gap:14px;justify-content:center;margin:8px 0}
+.tut-dice .die{width:60px;height:60px;flex:none}
+.tut-dice b{font-size:22px;color:var(--gold);min-width:150px}
+.tut-row{display:grid;grid-template-columns:260px 1fr;gap:16px;align-items:start}
+.tut-row img{width:100%;border-radius:10px}
+.tut-note{background:rgba(242,182,50,.12);border:1px solid var(--gold);border-radius:12px;padding:8px 12px;font-size:14px;line-height:1.6;margin-top:6px}
+@media (max-width:640px){.tut-w{grid-template-columns:repeat(3,1fr)}.tut-row{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -451,6 +487,7 @@ function pawnSVG(t){
 </svg>`;
 }
 function renderBoard(){
+  $('#board').classList.toggle('selecting',!!selecting);
   cells.forEach(c=>{
     const d=$('#cell'+c.i);
     d.classList.toggle('selectable',!!(selecting&&selecting.valid.has(c.i)));
@@ -646,8 +683,15 @@ async function doWarp(p){
   if(p.coins<10){ log(`${tname(p)} 워프 — 코인이 부족해 이동하지 못함`,p); msg('코인이 부족해 워프할 수 없습니다.'); await sleep(700); return; }
   let dest;
   if(p.human){
-    msg('🌀 워프! 이동할 <b>몬스터 칸</b>을 클릭하세요 (10코인)');
-    dest=await selectCell(targets);
+    // 사람은 지금 가진 무기로 획득할 수 있는 주인 없는 칸만 고를 수 있음
+    const claimable=cells.filter(c=>c.type==='monster'&&c.owner===null&&claimOptions(p,c).length).map(c=>c.i);
+    if(!claimable.length){
+      await modal({title:'🌀 워프',html:'<p>지금 가진 무기 카드로 획득할 수 있는 주인 없는 몬스터 칸이 없어요.</p><p>워프를 사용하지 않고 다음 차례로 넘어갑니다. (코인은 내지 않아요)</p>',buttons:[{label:'확인',v:'ok'}]});
+      log(`${tname(p)} 워프 — 획득할 수 있는 칸이 없어 사용하지 않음`,p); msg('워프할 수 있는 칸이 없습니다.');
+      return;
+    }
+    msg(`🌀 워프! 내 무기로 <b>획득 가능한 칸</b>을 클릭 (10코인)`);
+    dest=await selectCell(claimable);
     if(dest===null){ log(`${tname(p)} 워프를 사용하지 않음`,p); msg('워프 취소'); return; }
   } else {
     await aiDelay();
@@ -816,8 +860,115 @@ async function endGame(){
   location.reload();
 }
 
+// ============================ TUTORIAL ============================
+// 게임 시작 전 연습 한 판: 무기 확인 → 주사위 → 이동 → 고블린 칸 획득/포기
+async function tutorial(){
+  const ov=$('#modal'), box=$('#mbox');
+  const STRIP_W=57.8; // 판 왼쪽 0~6번 칸(시작~스켈레톤)까지 잘라서 보여줌
+  const cellX=k=>(k===0?5.5:11+(k-1)*7.8+3.9)/STRIP_W*100;
+  const cellL=k=>(k===0?0:11+(k-1)*7.8)/STRIP_W*100, cellWd=k=>(k===0?11:7.8)/STRIP_W*100;
+  const red=TEAMS[0], GOB=5, ROLL=[2,3];
+  let W, choice;
+
+  const head=(n,t)=>`<div class="tut-step">연습 한 판 · ${n}/4</div><h2>${t}</h2>`;
+  const wcards=(hl,used)=>`<div class="tut-w">${W.map(w=>{
+      const m=hl&&hl.includes(w.name), gone=used===w.name&&w.type==='c';
+      const cls=gone?'gone':hl?(m?'hit':'dim'):'';
+      const tag=gone?'<em>사용함</em>':(used===w.name?'<em>사용함 (남음)</em>':(m?'<em>필요 무기!</em>':''));
+      return `<div class="tw ${cls}">${tag}<img src="${wImg(w.name)}" alt="${w.name}">${w.name}<br>${w.type==='c'?'<span class="pill c">소모형 1회</span>':`<span class="pill e">장비형 ${w.uses}/5</span>`}</div>`;
+    }).join('')}</div>`;
+  const strip=(pos,state)=>`<div class="tut-strip">
+      <div class="tut-own" style="left:${cellL(1)}%;width:${cellWd(1)}%;background:${red.light}"></div>
+      <div class="tut-flag" style="left:${cellX(1)}%">내 칸</div>
+      ${state==='own'?`<div class="tut-own" style="left:${cellL(GOB)}%;width:${cellWd(GOB)}%;background:${red.light}"></div><div class="tut-flag" style="left:${cellX(GOB)}%">획득!</div>`:''}
+      ${state==='fine'?`<div class="tut-pot" style="left:${cellX(GOB)}%">50c</div>`:''}
+      <div class="tut-pawn" id="tutPawn" style="left:${cellX(pos)}%">${pawnSVG(red)}</div></div>`;
+  const show=html=>{ box.innerHTML=`<div class="tut">${html}</div>`; ov.classList.add('show'); };
+  const wait=()=>new Promise(res=>box.querySelectorAll('[data-v]').forEach(b=>b.onclick=()=>res(b.dataset.v)));
+  const btns=list=>`<div class="mbtns">${list.map(b=>`<button class="btn ${b.cls||''}" data-v="${b.v}">${b.label}</button>`).join('')}</div>`;
+  const SKIP={label:'건너뛰고 인원 정하기',v:'skip',cls:'sec'};
+
+  while(true){
+    W=[{name:'폭탄',type:'c',uses:1},{name:'화염병',type:'c',uses:1},{name:'해독제',type:'c',uses:1},{name:'덫',type:'e',uses:5},{name:'성물',type:'e',uses:5}];
+    // 1. 내 무기 확인
+    show(`${head(1,'내 무기 카드 확인')}
+      <p>레드 팀이 되어 한 차례만 연습해 볼게요. 차례가 시작되면 무기 카드를 <b>10장</b>까지 채워요. (연습에서는 5장만)</p>
+      ${wcards()}
+      <div class="tut-note">은색 <span class="pill c">소모형</span>은 <b>1번 쓰면 사라지고</b>, 금색 <span class="pill e">장비형</span>은 <b>5번까지</b> 쓸 수 있어요.</div>
+      ${strip(0)}
+      ${btns([{label:'🎲 주사위 굴리기',v:'roll'},SKIP])}`);
+    if(await wait()==='skip') break;
+
+    // 2. 주사위 + 이동
+    show(`${head(2,'주사위를 굴려 이동')}
+      <div class="tut-dice"><div class="die" id="td1"></div><div class="die" id="td2"></div><b id="tsum">굴리는 중...</b></div>
+      <p id="tmsg">나온 숫자의 합만큼 <b>시계방향</b>으로 이동해요.</p>
+      ${strip(0)}<div id="tbtn"></div>`);
+    const d1=$('#td1'), d2=$('#td2');
+    for(let k=0;k<12;k++){ drawDie(d1,1+Math.floor(Math.random()*6)); drawDie(d2,1+Math.floor(Math.random()*6)); SFX.rattle(); await sleep(60); }
+    drawDie(d1,ROLL[0]); drawDie(d2,ROLL[1]); SFX.diceLand();
+    $('#tsum').textContent=`${ROLL[0]} + ${ROLL[1]} = ${ROLL[0]+ROLL[1]}칸!`;
+    await sleep(500);
+    for(let k=1;k<=ROLL[0]+ROLL[1];k++){ $('#tutPawn').style.left=cellX(k)+'%'; SFX.step(); await sleep(300); }
+    $('#tmsg').innerHTML='<b>고블린</b> 칸에 도착했어요! 아직 <b>주인이 없는 몬스터 칸</b>이에요.';
+    $('#tbtn').innerHTML=btns([{label:'몬스터 카드 확인하기 →',v:'next'},SKIP]);
+    if(await wait()==='skip') break;
+
+    // 3. 획득 or 포기
+    show(`${head(3,'고블린 칸 — 획득할까, 포기할까?')}
+      <div class="tut-row"><img src="${url(cells[GOB].img)}" alt="고블린 카드">
+        <div><p>몬스터 카드의 <b>B. 필요 무기</b>를 확인하세요. 고블린은 <b>덫, 폭탄</b>이에요.</p>
+        <div class="tut-note"><b>쉼표( , )</b> → 둘 중 <b>하나만</b> 있으면 획득<br><b>더하기( + )</b> → <b>모두</b> 있어야 획득 (예: 드래곤 "은 무기+폭탄")<br>필요 무기가 없으면 <b>벌금</b>을 칸에 내요.</div></div></div>
+      <p>내 무기 중에 <b>덫</b>과 <b>폭탄</b>이 있어요! 어떤 무기를 쓸지, 아니면 포기할지 골라 보세요.</p>
+      ${wcards(['덫','폭탄'])}
+      ${btns([{label:'폭탄 사용해서 획득',v:'폭탄'},{label:'덫 사용해서 획득',v:'덫'},{label:'포기하고 벌금 50 내기',v:'no',cls:'sec'},SKIP])}`);
+    choice=await wait();
+    if(choice==='skip') break;
+
+    // 4. 결과
+    let title, body;
+    if(choice==='no'){
+      SFX.coinOut();
+      title='포기 — 벌금 50코인';
+      body=`<p>고블린 카드의 <b>통행료/벌금 50코인</b>을 칸에 냈어요. 칸에 쌓인 코인은 <b>나중에 이 칸을 획득하는 팀</b>이 모두 가져가요.</p>
+        <div class="tut-note">무기가 있어도 아끼고 싶으면 포기할 수 있어요. 필요 무기가 하나도 없으면 알림창이 뜨고 자동으로 벌금을 내요.</div>
+        ${wcards()}${strip(GOB,'fine')}`;
+    } else {
+      SFX.coinIn();
+      const w=W.find(x=>x.name===choice); w.uses--;
+      title=`${choice}(으)로 고블린 획득!`;
+      body=`<p>${choice==='폭탄'?'<b>폭탄</b>은 소모형이라 <b>한 번 쓰고 사라졌어요.</b>':'<b>덫</b>은 장비형이라 사용 횟수만 줄고 <b>4/5로 남아요.</b>'} 고블린 칸이 <b style="color:${red.light}">레드 팀 색</b>으로 바뀌었어요.</p>
+        <div class="tut-note">이제 다른 팀이 고블린 칸에 멈추면 <b>통행료 50코인</b>을 받아요. 나중에 내가 다시 이 칸에 오면 <b>강화(10코인)</b>해서 통행료를 80코인으로 올릴 수 있어요.</div>
+        ${wcards(null,choice)}${strip(GOB,'own')}`;
+    }
+    show(`${head(4,title)}${body}
+      <p style="text-align:center;margin-top:12px">한 차례는 이렇게 끝나고 다음 팀 차례로 넘어가요. <b>이제 진짜 게임을 시작해 볼까요?</b></p>
+      ${btns([{label:'게임 시작! 인원 정하기 →',v:'go'},{label:'다시 해보기',v:'again',cls:'sec'}])}`);
+    if(await wait()!=='again') break;
+  }
+}
+
 // ============================ SETUP ============================
 async function setup(){
+  await modal({title:'게임 방법',html:`<div class="howto">
+    <p class="lead">주사위를 굴려 보드를 돌며 몬스터 칸을 차지하고, 다른 팀에게서 통행료를 받아 살아남는 게임이에요.</p>
+    <ol>
+      <li><b class="h">① 시작할 때</b>팀마다 <b>1500코인</b>, <b>기본 몬스터 카드 1장</b>(같은 그림의 칸을 소유), <b>무기 카드 10장</b>을 받아요.</li>
+      <li><b class="h">② 내 차례</b>무기 카드를 10장까지 채우고 🎲 주사위 2개를 굴려 나온 수만큼 <b>시계방향</b>으로 이동해요.</li>
+      <li><b class="h">③ 주인 없는 몬스터 칸</b>카드에 적힌 <b>필요 무기</b>가 있으면 무기를 써서 칸을 가져요. 없으면 <b>벌금</b>을 칸에 내고, 쌓인 벌금은 나중에 그 칸을 가지는 팀이 받아요.</li>
+      <li><b class="h">④ 다른 팀의 몬스터 칸</b>칸 주인에게 <b>통행료</b>를 내요. 내 칸에 도착하면 코인을 내고 <b>강화</b>해서 통행료를 올릴 수 있어요.</li>
+      <li><b class="h">⚔ 무기 카드</b><b>은색(소모형)</b>은 1번 쓰면 버리고, <b>금색(장비형)</b>은 5번까지 써요. "A, B"는 둘 중 하나, "A+B"는 둘 다 있어야 해요.</li>
+      <li><b class="h">💸 코인이 모자라면</b>내 몬스터 칸을 <b>매각</b>해서 코인을 마련할 수 있어요. 매각한 칸은 다시 주인 없는 칸이 돼요.</li>
+    </ol>
+    <div class="sp">
+      <div><b>🏁 시작</b><br>도착 40코인<br>지나가면 30코인</div>
+      <div><b>⛓ 지하감옥</b><br>3번 쉬기. 같은 숫자가 나오면 탈출!</div>
+      <div><b>🔮 몬스터 각성</b><br>내 몬스터 하나의 통행료가 1.5배</div>
+      <div><b>🌀 워프</b><br>10코인 내고 원하는 몬스터 칸으로 이동</div>
+    </div>
+    <div class="win">🏆 <b>게임 끝:</b> 한 팀이 몬스터를 모두 팔아도 코인이 모자라 <b>파산</b>하면 끝나요. 남은 코인 + 몬스터 매각 가치가 가장 많은 팀이 우승!</div>
+  </div>`,buttons:[{label:'다음: 연습 한 판 해보기 →',v:'ok'}]});
+  await tutorial();
   const v=await modal({title:'몬스터 마블',html:'<p style="text-align:center">몇 명이 플레이하나요? 부족한 인원은 AI가 플레이합니다.<br><small style="color:var(--muted)">플레이어는 레드 → 블루 → 옐로 → 그린 팀 순서로 배정돼요.</small></p>',
     buttons:[1,2,3,4].map(n=>({label:`${n}명`,v:n}))});
   const humans=+v;
